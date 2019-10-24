@@ -1,6 +1,7 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
@@ -17,11 +18,10 @@ import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 
 public class SmartSchedulerGUI implements ActionListener{
 	
-	
-	private List<ArrayList<Integer>> month_list;
 	private int current_month;
 	private int max_slots;
 	
@@ -48,46 +48,14 @@ public class SmartSchedulerGUI implements ActionListener{
 	
 	public SmartSchedulerGUI()
 	{
-		month_list = new ArrayList<ArrayList<Integer>>();
 		current_month = ((Calendar.getInstance().get(Calendar.YEAR) - Constants.start_year) * Constants.max_months) + Calendar.getInstance().get(Calendar.MONTH);
 		System.out.println(current_month);
 		
-		initializeDates();
+		Constants.initializeDates();
 		initializeGui();
 	}
 	
-	private void initializeDates()
-	{
-		for (int year = 0; year < Constants.max_years; year++)
-		{
-			
-			for (int month = 0; month < Constants.max_months; month++)
-			{
-				//If leap year, add a day to february
-				ArrayList<Integer> temp_month = new ArrayList<Integer>();
-				if (month == 1 && (year + Constants.start_year) % 4 == 0) //February
-				{
-					Constants.max_days[month] += 1;
-				}
-				
-				//Get the days of the week for the month
-				for (int day = 0; day < Constants.max_days[month]; day++)
-				{
-					temp_month.add((day + Constants.start_day) % 7);
-				}
-				
-				//Add the list
-				month_list.add(temp_month);
-				//Update start day for next monthW
-				Constants.start_day = ((Constants.max_days[month] + Constants.start_day) % 7); 
-				
-				if (month == 1 && (year + Constants.start_year) % 4 == 0) //February
-				{
-					Constants.max_days[month] -= 1;
-				}
-			}
-		}
-	}
+	
 	
 	private void initializeGui()
 	{
@@ -148,7 +116,7 @@ public class SmartSchedulerGUI implements ActionListener{
 		days_of_week = new JLabel[Constants.number_days_per_week];
 		
 		//Set the layout
-		if (month_list.get(current_month).size() + month_list.get(current_month).get(0) > 35)
+		if (Constants.month_list.get(current_month).size() + Constants.month_list.get(current_month).get(0) > 35)
 		{
 			max_slots = Constants.number_days_per_week * 7;
 			dates_panel.setLayout(new GridLayout(max_slots/Constants.number_days_per_week, Constants.number_days_per_week));
@@ -168,30 +136,35 @@ public class SmartSchedulerGUI implements ActionListener{
 			dates_panel.add(days_of_week[i]);
 		}
 		
+		//Get start of the month, end of the month, and everything in-between.
+		
 		//Create the buttons for each day of the month
 		days_buttons = new JButton[Constants.max_days_per_month];
 		for (int i = 0; i < Constants.max_days_per_month; i++)
 		{
 			days_buttons[i] = new JButton(Integer.toString(i+1));
 			days_buttons[i].setBorder(BorderFactory.createLineBorder(Color.black));
+			days_buttons[i].setHorizontalAlignment(SwingConstants.LEFT);
+			days_buttons[i].setVerticalAlignment(SwingConstants.TOP);
+			days_buttons[i].setFont(new Font("Helvetica", Font.BOLD, 18));
 			days_buttons[i].addActionListener(this);
 		}
 
 		
 		//First value in the month gets the starting day of the week, add boxes before
-		for (int i = 0; i < month_list.get(current_month).get(0); i++)
+		for (int i = 0; i < Constants.month_list.get(current_month).get(0); i++)
 		{
 			dates_panel.add(Box.createRigidArea(new Dimension(5,0)));
 		}
 		
-		//Loop through October
-		for (int i = 0; i < month_list.get(current_month).size(); i++)
+		//Loop through Month
+		for (int i = 0; i < Constants.month_list.get(current_month).size(); i++)
 		{
 			dates_panel.add(days_buttons[i]);
 		}
 		
 		//Fill in the r
-		int remaining_empty_spaces = max_slots - days_of_week.length - month_list.get(current_month).size() - month_list.get(current_month).get(0);
+		int remaining_empty_spaces = max_slots - days_of_week.length - Constants.month_list.get(current_month).size() - Constants.month_list.get(current_month).get(0);
 		for (int i = 0; i < remaining_empty_spaces; i++)
 		{
 			dates_panel.add(Box.createRigidArea(new Dimension(5,0)));
@@ -205,6 +178,7 @@ public class SmartSchedulerGUI implements ActionListener{
 		dates_panel.repaint();
 		dates_panel.revalidate();
 	}
+	
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -212,13 +186,11 @@ public class SmartSchedulerGUI implements ActionListener{
 		{
 			selected_year = yearCombo.getSelectedIndex();
 			current_month = (selected_year * 12) + selected_month;
-			createDatesPanel();
 		}
 		else if (e.getSource() == monthCombo)
 		{
 			selected_month = monthCombo.getSelectedIndex();
 			current_month = (selected_year * 12) + selected_month;
-			createDatesPanel();
 		}
 		else if (e.getSource() == left_button)
 		{
@@ -242,7 +214,6 @@ public class SmartSchedulerGUI implements ActionListener{
 				}
 				//It's January 2010, do nothing
 			}
-			createDatesPanel();
 		}
 		else if (e.getSource() == right_button)
 		{
@@ -266,7 +237,7 @@ public class SmartSchedulerGUI implements ActionListener{
 				}
 				//It's December 2029, do nothing
 			}
-			createDatesPanel();
+			
 		}
 		else
 		{
@@ -275,14 +246,13 @@ public class SmartSchedulerGUI implements ActionListener{
 				if (e.getSource() == days_buttons[i])
 				{
 					//TODO: Come up with system for tracking dates and maintaing file, etc.
-					String ID =  Integer.toString(monthCombo.getSelectedIndex() + 1) + "/" + days_buttons[i].getText() + "/" + yearCombo.getSelectedItem().toString();
-					Date current = new Date();
-					current.
-					System.out.println(ID);
-					new DailyGUI(ID);
+					String date =  Integer.toString(monthCombo.getSelectedIndex() + 1) + "/" + days_buttons[i].getText() + "/" + yearCombo.getSelectedItem().toString();
+					int ID = Constants.getDifference(date);
+					DailyGUI temp = new DailyGUI(date, ID); //Note: this thread FREEZES. Can just repaint after.
 				}
 			}
 		}
 		
+		createDatesPanel();
 	}
 }
