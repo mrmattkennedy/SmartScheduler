@@ -19,6 +19,7 @@ public class Constants {
 	static final int number_days_per_week = 7;
 	static final int total_months = max_years * max_months - 1;
 	static int[] max_days = new int[]{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+	
 	static final int max_days_per_month = Collections.max(
 			Arrays.stream(max_days)
 			.boxed()

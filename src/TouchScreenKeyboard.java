@@ -62,7 +62,7 @@ public class TouchScreenKeyboard extends JFrame {
         EventQueue.invokeLater(new Runnable() {
             @Override
             public void run() {
-            	TouchScreenKeyboard guI = new TouchScreenKeyboard();
+            	TouchScreenKeyboard gui = new TouchScreenKeyboard();
             }
         });
     }

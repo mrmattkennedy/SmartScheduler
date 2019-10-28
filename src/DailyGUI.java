@@ -32,18 +32,18 @@ import javax.swing.JTextPane;
 
 //TODO: get the google doodles for each day, only display for the current date or when DailyGUI opened for a day.
 //Items are added in a list, with each item having an X at the end of it. Maybe a checkmark too, for done?
+//Need to add repeating items, and the functionality of rollover
 public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 	
 	//Set in the ID, and convert to bytes for writing to the file.
 	private int ID;
 	private String date;
-	
-	private byte[] IDToBytes;
+	private byte[] file_contents_to_bytes;
 	private String file_name;
 	private Path path;
 	private List<String> file_contents;
-	private int file_position = -1;
-	private String to_do; 
+	private List<Integer> file_positions;
+	private int file_position = -2; 
 	
 	//GUI
 	private JPanel main_panel;
@@ -55,9 +55,11 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 	
 	//Items panel
 	private JPanel items_panel;
+	private int panel_height;
 	private JScrollPane items_panel_pane;
 	private List<JTextArea> item_texts;
-	private List<String> items;
+	private List<JButton> item_remove;
+	private ArrayList<String> items;
 	
 	//Bottom panel
 	private JPanel bottom_panel;
@@ -72,30 +74,36 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 	//Constants
 	private final String description_placeholder = "Enter description here (optional)";
 	private final String subject_placeholder = "Enter subject here";
-	private final String no_items_placeholder = "--None listed currently--";
+	private final String no_items_placeholder = "";
 	private final String daily_delimiter = "-=-";
 	private final String item_delimiter = ",,,";
 	private final int offset_constant = 100;
+	private final int delete_button_size = offset_constant / 2;
+	private final int not_found = -2;
 	
 	//Read what is in there. If nothing, then just display nothing.
 	//Give users option to add stuff, set a priority. Automatically add cleaning? Others?
 	//Have subject input (what's displayed), additional info.
 	public DailyGUI(String date, int ID)
 	{
+		//Initialize instance variables sent in
 		this.ID = ID;
 		this.date = date;
 		
+		//Get the screen size
 		screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		screenSize.width /= 2;
 		screenSize.height /= 2;
 		
+		//Create the subpanels
 		createTopPanel();
 		createItemsPanel();
 		createBottomPanel();
-
-		main_panel = new JPanel();
 		
+		//Create main panel
+		main_panel = new JPanel();
 		main_panel.setLayout(new BorderLayout());
+		//Add subpanels to main panel
 		main_panel.add(top_panel, BorderLayout.NORTH);
 		main_panel.add(items_panel_pane, BorderLayout.CENTER);
 		main_panel.add(bottom_panel, BorderLayout.SOUTH);
@@ -108,6 +116,10 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 		setModal(true); //Makes it so can only click on this dialog and not main GUI
 		setVisible(true);
 	}
+	
+	/*
+	 * Creates the top panel. Not much on here, just the date information.
+	 */
 	private void createTopPanel()
 	{
 		top_panel = new JPanel();
@@ -117,39 +129,59 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 		top_panel.setBorder(BorderFactory.createLineBorder(Color.black));
 	}
 	
-	//TODO: Create a button to loop through, 10 at a time.
+	/*
+	 * Creates main subpanel, the items panel.
+	 * Starts by initializing panel and lists needed.
+	 * Next, calls readFileContents to see what daily items there are.
+	 * Sets panel height according to the number of items
+	 * Creates the item texts and buttons for each item, and adds them to the panel.
+	 */
 	private void createItemsPanel()
 	{
+		//Initialize objects
 		items_panel = new JPanel(); //0 to add items vertically expanding (new GridLayout(0, 1, 5, 5))
 		items_panel_pane = new JScrollPane(items_panel);
 		item_texts = new ArrayList<JTextArea>();
+		item_remove = new ArrayList<JButton>();
 		items = new ArrayList<String>();
-		
-		items_panel.setPreferredSize(new Dimension(screenSize.width - offset_constant, screenSize.height));
-		
-		items_panel_pane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 		
 		readFileContents();
 		
+		//For height, need to get number of items and factor
+		panel_height = items.size() * ((offset_constant/2) + 5);
+		items_panel.setPreferredSize(new Dimension(screenSize.width - offset_constant, panel_height));
+		
+		//Set scroll policy
+		items_panel_pane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+		
 		for (String item : items)
 		{
-			JTextArea temp = new JTextArea(item);
-			temp.setPreferredSize(new Dimension(screenSize.width - offset_constant, offset_constant/2));
-			item_texts.add(temp);
+			//Create temp objects for the text area and the temp button
+			JTextArea temp_text = new JTextArea(item);
+			JButton temp_button = new JButton("X");
+			
+			//Sets the button color and adds an action listener
+			temp_button.setForeground(Color.red);
+			temp_button.addActionListener(this);
+			
+			//Set sizes of textarea and button
+			temp_text.setPreferredSize(new Dimension(screenSize.width - offset_constant - delete_button_size, offset_constant/2));
+			temp_button.setPreferredSize(new Dimension(delete_button_size, delete_button_size));
+			
+			//Add them to the appropriate lists
+			item_texts.add(temp_text);
+			item_remove.add(temp_button);
+			
+			//Add the objects to the panel
 			items_panel.add(item_texts.get(item_texts.size() - 1));
+			items_panel.add(item_remove.get(item_remove.size() - 1));
 		}
-		
-		//items_text = new JTextPane();
-		//items_text.setContentType("text/html");
-		//items_text.setText(to_do);
-		//items_text.setFont(new Font("Helvetica", Font.BOLD, 16));
-		
-		//items_pane = new JScrollPane(items_text);
-		//items_pane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-		
-		//items_panel.add(items_pane);
 	}
 	
+	/*
+	 * Creates the bottom panel.
+	 * Contains the functionality to add a new item, be done and save, or cancel and not save.
+	 */
 	private void createBottomPanel()
 	{
 		bottom_panel = new JPanel(new GridLayout(1, 3, 5, 5));
@@ -196,9 +228,16 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 		bottom_panel.add(bottom_button_panel);
 	}
 	
+	/*
+	 * Reads file contents.
+	 * Opens file, gets all lines daily ID's, then sorts them.
+	 * Checks if daily ID exists. If not, give a placeholder.
+	 * If it does, loop through with iterator and get index
+	 * Read the contents in.
+	 */
 	private void readFileContents()
 	{
-		List<Integer> temp_ints = new ArrayList<Integer>();
+		file_positions = new ArrayList<Integer>();
 		file_name = "daily_file.dat";
 		path = Paths.get(file_name);
 		
@@ -208,7 +247,7 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 		try {
 			file_contents = Files.readAllLines(path);
 			
-			temp_ints = file_contents
+			file_positions = file_contents
 					.stream()
 					.map(x -> Integer.parseInt(x.substring(0, x.indexOf(daily_delimiter))))
 					.collect(Collectors.toList());
@@ -218,8 +257,9 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 		}
 		
 		//See if the line exists. If not, default.
-		Collections.sort(temp_ints);
-		if (Collections.binarySearch(temp_ints, ID) == -1)
+		//Sort likely unnecessary, but just in case.
+		Collections.sort(file_positions);
+		if (Collections.binarySearch(file_positions, ID) <= -1)
 		{
 			items.add(no_items_placeholder);
 		}
@@ -243,27 +283,134 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 			{
 				//Get the line temporarily, then get everything after the ID in the line
 				String line = file_contents.get(file_position);
-				items = Arrays.asList(line.substring(line.indexOf(daily_delimiter) + daily_delimiter.length())
-						.split(item_delimiter));
+				
+				//Need to create this way, as just using Arrays.asList only wraps array with list, can't delete items later
+				items = new ArrayList<String>(Arrays.asList(
+						line.substring(line.indexOf(daily_delimiter) + daily_delimiter.length())
+						.split(item_delimiter)));
 			}
 		}
 	}
 	
-	/*
+	
 	private void addItem(String item)
 	{
-		String current_text = items_text.getText();
-		if (current_text.equals(no_items_placeholder))
+		items.add(item);
+		
+		//For height, need to get number of items and factor
+		panel_height = items.size() * ((offset_constant/2) + 5);
+		items_panel.setPreferredSize(new Dimension(screenSize.width - offset_constant, panel_height));
+		
+		JTextArea temp_text = new JTextArea(item);
+		JButton temp_button = new JButton("X");
+		
+		//Sets the button color and adds an action listener
+		temp_button.setForeground(Color.red);
+		temp_button.addActionListener(this);
+		
+		//Set sizes of textarea and button
+		temp_text.setPreferredSize(new Dimension(screenSize.width - offset_constant - delete_button_size, offset_constant/2));
+		temp_button.setPreferredSize(new Dimension(delete_button_size, delete_button_size));
+		
+		//Add them to the appropriate lists
+		item_texts.add(temp_text);
+		item_remove.add(temp_button);
+		
+		//Add the objects to the panel
+		items_panel.add(item_texts.get(item_texts.size() - 1));
+		items_panel.add(item_remove.get(item_remove.size() - 1));
+		
+		items_panel.repaint();
+		items_panel.revalidate();
+	}
+	
+	private void removeItem(int index)
+	{
+		items.remove(index);
+		
+		//For height, need to get number of items and factor
+		panel_height = items.size() * ((offset_constant/2) + 5);
+		items_panel.setPreferredSize(new Dimension(screenSize.width - offset_constant, panel_height));
+		
+		items_panel.remove(item_texts.get(index));
+		items_panel.remove(item_remove.get(index));
+		
+		item_texts.remove(index);
+		item_remove.remove(index);
+		
+		items_panel.repaint();
+		items_panel.revalidate();
+	}
+	
+	
+	private void save_contents()
+	{
+		//Need to get everything, add delimiter, determine if spot exists (create one if not), and save it.
+		String save_string = Integer.toString(ID) + daily_delimiter;
+		
+		//Get everything from item_texts (this way, changes are reflected if user just typed them in manually
+		for (JTextArea item_text : item_texts)
 		{
-			items_text.setText("Daily items:\n" + item);
+			save_string += item_text.getText() + item_delimiter;
 		}
-		else
+		
+		//If 0, will delete daily delimiter
+		if (items.size() > 0)
 		{
-			items_text.setText(current_text + "\n" + item);
+			save_string = save_string.substring(0, save_string.length() - 3);
+		}
+
+		//Determine if position already exists
+		if (file_position == not_found)
+		{
+			//If not, determine where spot should be.
+			Iterator<Integer> i = file_positions.iterator();
+			int count = 0;
+			while (i.hasNext())
+			{
+				if (i.next() >= ID)
+				{
+					file_position = count; //Place before next highest
+					break;
+				}
+				count++;
+			}
+		}
+		
+		//Cases: 
+		//-1 = first
+		//Might equal ID
+		//	If so, check line and insert there.
+		
+		//Largest value so far
+		if (file_position == -2)
+		{
+			file_position = file_positions.size(); 
+		}
+		else if (ID == file_positions.get(file_position))
+		{
+			file_contents.remove(file_position);
+		}
+		file_contents.add(file_position, save_string);
+		
+		//Write list to StringBuilder, then to byte array, then to file.
+		StringBuilder temp = new StringBuilder();
+		for (String line : file_contents)
+		{
+			temp.append(line);
+			temp.append(System.getProperty("line.separator"));
+		}
+		
+		file_contents_to_bytes = temp.toString().getBytes();
+		try {
+			Files.write(path, file_contents_to_bytes);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
-	*/
-
+	
+	
 	//Hint text should be there when text is empty and when focus is not there.
 	//Focus gained = remove
 	//Focus lost = add
@@ -310,9 +457,22 @@ public class DailyGUI extends JDialog implements FocusListener, ActionListener {
 				{
 					text_to_add += ": " + item_to_add.getText();
 				}
-				//addItem(text_to_add);
+				addItem(text_to_add);
 			}
 		}
-		
+		else if (e.getSource() == done_btn)
+		{
+			save_contents();
+			dispose();
+		}
+		else if (e.getSource() == cancel_btn)
+		{
+			dispose();
+		}
+		else if (item_remove.contains(e.getSource()))
+		{
+			int index = item_remove.indexOf(e.getSource());
+			removeItem(index);
+		}
 	}
 }

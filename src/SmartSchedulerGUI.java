@@ -30,7 +30,6 @@ public class SmartSchedulerGUI implements ActionListener{
 	private JComboBox monthCombo;
 	private JPanel topPanel;
 	
-	
 	//Dates panel
 	private JPanel dates_panel;
 	private JLabel[] days_of_week;
@@ -39,6 +38,10 @@ public class SmartSchedulerGUI implements ActionListener{
 	private JButton right_button;
 	private int selected_year;
 	private int selected_month;
+	
+	//Bottom panel
+	private JPanel bottom_panel;
+	private JButton repeating_item_button;
 	
 	//Overall GUI
 	private JFrame frame;
@@ -62,7 +65,7 @@ public class SmartSchedulerGUI implements ActionListener{
 		dates_panel = new JPanel();
 		createTopPanel();
 		createDatesPanel();
-		//createBottomPanel();
+		createBottomPanel();
 		
 		frame = new JFrame();
 		panel = new JPanel();
@@ -70,6 +73,7 @@ public class SmartSchedulerGUI implements ActionListener{
 		panel.setLayout(new BorderLayout());
 		panel.add(topPanel, BorderLayout.NORTH);
 		panel.add(dates_panel, BorderLayout.CENTER);
+		panel.add(bottom_panel, BorderLayout.SOUTH);
 		
 		screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		screenSize.width -= 50;
@@ -179,6 +183,14 @@ public class SmartSchedulerGUI implements ActionListener{
 		dates_panel.revalidate();
 	}
 	
+	private void createBottomPanel()
+	{
+		bottom_panel = new JPanel();
+		repeating_item_button = new JButton("Add repeating item");
+		repeating_item_button.addActionListener(this);
+		bottom_panel.add(repeating_item_button);
+	}
+	
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -239,16 +251,21 @@ public class SmartSchedulerGUI implements ActionListener{
 			}
 			
 		}
+		else if (e.getSource() == repeating_item_button)
+		{
+			new RepeatingItem();
+		}
 		else
 		{
 			for (int i = 0; i < Constants.max_days_per_month; i++)
 			{
 				if (e.getSource() == days_buttons[i])
 				{
-					//TODO: Come up with system for tracking dates and maintaing file, etc.
+					//TODO: Come up with system for tracking dates and maintaining file, etc.
 					String date =  Integer.toString(monthCombo.getSelectedIndex() + 1) + "/" + days_buttons[i].getText() + "/" + yearCombo.getSelectedItem().toString();
 					int ID = Constants.getDifference(date);
-					DailyGUI temp = new DailyGUI(date, ID); //Note: this thread FREEZES. Can just repaint after.
+					System.out.println(ID);
+					new DailyGUI(date, ID); //Note: this thread FREEZES. Can just repaint after.
 				}
 			}
 		}
